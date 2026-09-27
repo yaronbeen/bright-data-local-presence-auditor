@@ -1,0 +1,5 @@
+[
+  {"place_id":"place-1","place_name":"Example Cafe","rating":2,"review_text":"Long wait and inattentive service","review_date":"2026-09-20T10:00:00Z"},
+  {"place_id":"place-1","place_name":"Example Cafe","rating":5,"review_text":"Great coffee and friendly staff","review_date":"2026-09-21T10:00:00Z"},
+  {"place_id":"place-2","place_name":"Sample Bakery","rating":3,"review_text":"Good pastries but expensive","review_date":"2026-09-22T10:00:00Z"}
+]

@@ -1,16 +1,16 @@
-# Local Presence Auditor
+# Google Maps Public Listing & Review Audit
 
-An evidence-first audit of fields returned for public Google Maps listings. It is **not** a Google Business Profile (formerly Google My Business) API client, cannot access account-private profile data, and never changes a listing.
+An evidence-first audit of public Google Maps listing observations and public review operations. This is **not** a Google Business Profile (formerly Google My Business, GMB) API client: it cannot access account-private profile data, verify listing ownership, inspect owner response status, edit a listing, or reply to a review.
 
 ## What it helps with
 
-Review a small agency/client-provided set of Maps listing URLs and flag whether selected observed fields (address, phone, website, category) were returned. It also carries through public rating and review count when supplied. This creates a human-review checklist, not a definitive completeness verdict.
+For an agency or local-marketing operator, check which selected fields were returned for client-provided public Google Maps URLs and optionally sort returned public review records into a human triage queue. “Not returned” is an API observation, not a confirmed defect on the live listing. Review collection is a separate Bright Data Google Maps Reviews dataset request. This creates an audit checklist, not a Google Business Profile workflow or automated reputation-management system.
 
 ## Verified integration and architecture
 
-Bright Data documents a Google Scraper API with Google Maps full-info dataset `gd_m8ebnr0q2qlklc02fz` and a separate Google Maps Reviews dataset `gd_luzfs1dn2oa0teb81`. This demo calls only the Maps full-info dataset for supplied URLs. It does not call a Google Business Profile API or claim profile ownership verification. A field missing from a scrape can mean not returned, not necessarily absent on the live listing.
+Bright Data documents a Google Scraper API with Google Maps full-info dataset `gd_m8ebnr0q2qlklc02fz` and separate Reviews dataset `gd_luzfs1dn2oa0teb81`. Listing checks and optional reviews are distinct calls and can each incur charges. Review records document public rating, text, date, and place identifiers; this tool does not infer owner-response status because that field is not in the documented response example. It does not call Google Business Profile APIs or claim ownership verification. Missing listing fields mean not returned, not necessarily absent.
 
-Flow: `CSV Maps URLs -> Bright Data Google Maps dataset -> observed field checks -> JSON/CSV`. Offline sample records use the same audit logic. Python 3.10+ standard library runtime.
+Flow: `explicit --live + CSV Maps URLs -> Bright Data Google Maps dataset -> observed field checks -> JSON/CSV`. Offline sample records use the same audit logic. Python 3.10+ standard library runtime.
 
 ## Setup
 
@@ -27,24 +27,34 @@ Create a key from [Bright Data account settings](https://brightdata.com/cp/setti
 ```bash
 python auditor.py sample_listings.json audit.json
 python auditor.py sample_listings.json audit.csv
+python auditor.py sample_listings.json reviews-audit.json --reviews-file sample_reviews.json
 ```
 
 For live lookups create CSV with a `url` column containing public `google.com/maps` listing URLs:
 
 ```bash
-python auditor.py listings.csv audit.json
-python auditor.py listings.csv audit.json --dry-run
+python auditor.py listings.csv audit.json --live
+python auditor.py listings.csv audit.json --live --dry-run
+python auditor.py listings.csv reviews-audit.json --live --reviews --review-days 30
 ```
 
-Dry-run validates local URL shape and makes no API call. Synchronous collection is capped at the documented 20 URLs per request. Live requests can incur per-record charges; review current [Web Scraper pricing](https://brightdata.com/pricing/web-scraper), product billing, and your plan first. Long-running responses may return async snapshot IDs, which this intentionally bounded demo reports as unsupported rather than polling invisibly. Reviews are not fetched: the separate product requires a separately scoped integration/cost.
+All public URL collection requires explicit `--live`; URL-only input without it is rejected. Dry-run with `--live` validates every URL and prints the planned dataset-call count but makes no API call. Synchronous collection is capped at the documented 20 URLs per request. `--reviews` also requires `--live`, makes a second request to the separate Reviews dataset, and passes `--review-days` (default 30) as Bright Data's documented `days_limit` input. This asks the dataset to limit review age; it is not a local post-fetch date filter or a guarantee of complete coverage/recency. The report reflects only returned rows and their returned dates; inspect `review_date` values. Review retrieval is an additional billable operation. Review current [Web Scraper pricing](https://brightdata.com/pricing/web-scraper), product billing, and your plan before live runs. Long-running responses may return async snapshot IDs, which this bounded demo reports as unsupported rather than polling invisibly.
 
 ## Output schema
 
-`listing_name`, `source_url`, `address`, `phone`, `website`, `category`, `rating`, `reviews_count`, `missing_observed_fields`, `observed_fields_status`, `checked_at`, `scope_note`. Status is `all_selected_fields_returned` only when all four selected observation fields were returned; otherwise `some_selected_fields_not_returned`. It says nothing about opening hours, service areas, ownership, verification, policy compliance, or whether a field is actually absent.
+`listing_name`, `source_url`, `address`, `phone`, `website`, `category`, `rating`, `reviews_count`, `missing_observed_fields`, `observed_fields_status`, `checked_at`, `scope_note`. Status is `all_selected_fields_returned` only when all four selected observation fields were returned; otherwise `some_selected_fields_not_returned`. This is a returned-field checklist for the client-supplied URL, not a claim that the listing is deficient. It says nothing about opening hours, service areas, ownership, verification, policy compliance, or whether a field is actually absent. CSV formula-leading text is prefixed to reduce spreadsheet formula injection risk.
+
+Illustrative decision: if `phone` was not returned for two of five supplied listings, route those URLs for manual source verification. Do not treat the count as proof that either live listing lacks a phone number.
+
+When review mode is used, JSON additionally contains `review_operations.summary`, per-location review and low-rating counts, and review triage rows with `rating`, returned `review_date`, `themes`, and a shortened `review_excerpt`. Ratings 1–2 are flagged for priority human review and 3-star reviews for monitoring. These are sorting rules, not sentiment truth or response-status indicators. The report does not assert a guaranteed date range; the request's `days_limit` is advisory to the dataset and the output reflects only records actually returned.
+
+## How this differs from existing tools
+
+Unlike `bright-data-google-maps-scraper`, which supports place discovery/collection and data export, this project is a client-URL returned-field checklist plus a theme-based review triage queue. The integration boundary is public Google Maps scraper data only: it does not use the Google Business Profile (GBP/GMB) API, access private owner data, verify ownership, track owner replies, respond to reviews, or edit listings. URL-only input requires `--live`; the checklist never labels a non-returned field a confirmed listing problem.
 
 ## Privacy and platform boundaries
 
-Only user-supplied public listing URLs. No account login, profile editing, verification, review replies, access-control bypass, collection of customer/reviewer identities, or outreach. Public visibility is not authorization. Obtain appropriate client authorization, minimize retained data, follow applicable platform terms/law, and honor corrections/deletions. The tool does not assert legal or Google policy compliance.
+Only user-supplied public listing URLs. No account login, profile editing, verification, review replies, access-control bypass, identity enrichment, profiling, or outreach. Bright Data's documented review example contains reviewer name/URL fields. The adapter allowlists location ID/name, rating, date, themes, and a shortened excerpt; it discards reviewer name, URL, and any unrecognized reviewer identifier fields from normalized output and never saves the raw response. Public visibility is not authorization. Obtain appropriate client authorization, minimize retained data, follow applicable platform terms/law, and honor corrections/deletions. The tool does not assert legal or Google policy compliance.
 
 ## Troubleshooting and tests
 
@@ -54,9 +64,10 @@ Only user-supplied public listing URLs. No account login, profile editing, verif
 - HTTP 429: stop and reduce request rate.
 - Missing fields: inspect the primary source; the API output may be incomplete or changed.
 - Async response: this example is limited to synchronous URL collections.
+- Review collection is separate: `--live --reviews` adds a second dataset request and may add cost.
 
 ```bash
 python3 -m pytest -q
 ```
 
-Tests include observed/missing distinction, unsafe URL rejection, and field limits. Samples are illustrative. MIT License.
+Tests include observed/missing distinction, Maps route validation, malformed rows, review theme triage, separate review dataset request shape, and sync limits. Samples are illustrative. MIT License.
