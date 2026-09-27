@@ -1,10 +1,25 @@
 # Google Maps Public Listing & Review Audit
 
-An evidence-first audit of public Google Maps listing observations and public review operations. This is **not** a Google Business Profile (formerly Google My Business, GMB) API client: it cannot access account-private profile data, verify listing ownership, inspect owner response status, edit a listing, or reply to a review.
+**Auditing several client Google Maps listings?** This CLI gives a local-marketing agency a consistent checklist of selected fields returned for supplied public listing URLs and, optionally, a human triage queue for returned public reviews. It helps decide which listings or reviews deserve manual verification. It is **not** a Google Business Profile API client and cannot verify ownership or edit a profile.
 
 ## What it helps with
 
 For an agency or local-marketing operator, check which selected fields were returned for client-provided public Google Maps URLs and optionally sort returned public review records into a human triage queue. “Not returned” is an API observation, not a confirmed defect on the live listing. Review collection is a separate Bright Data Google Maps Reviews dataset request. This creates an audit checklist, not a Google Business Profile workflow or automated reputation-management system.
+
+## Example: returned fields to a manual checklist
+
+An agency receives five public Maps listing URLs from a client before a local campaign. It runs the listing audit, then reviews the `missing_observed_fields` column. Synthetic illustration: if `phone` was not returned for two of the five URLs, the useful action is to open those two sources and verify the client-provided details before updating an internal checklist. The result is **not** proof that the live listings lack phone numbers; “not returned” can reflect incomplete source data.
+
+If the agency also opts into review collection, returned reviews are separately grouped by simple text themes and rating-based triage labels. For example, a low-rated record matching the literal “wait” cue can be routed for a person to read in context. The tool does not know whether an owner replied, diagnose root causes, or post a response.
+
+Offline examples (no Bright Data request):
+
+```bash
+python3 auditor.py sample_listings.json audit.json
+python3 auditor.py sample_listings.json reviews-audit.json --reviews-file sample_reviews.json
+```
+
+The first writes listing observations. The second adds an offline review-triage report. Live listing collection and live review collection are separate explicit options; live review collection makes an additional dataset request and may incur additional charges.
 
 ## Verified integration and architecture
 
@@ -71,3 +86,15 @@ python3 -m pytest -q
 ```
 
 Tests include observed/missing distinction, Maps route validation, malformed rows, review theme triage, separate review dataset request shape, and sync limits. Samples are illustrative. MIT License.
+
+## FAQ
+
+**Does this audit or edit a Google Business Profile account?** No. It uses public Google Maps scraper observations only. It cannot access private account data, verify ownership, edit listings, inspect owner response status, or reply to reviews.
+
+**Does a missing field mean the listing is wrong?** No. It means the field was not returned by the dataset for that request. Verify it against the live source before treating it as an issue.
+
+**Are reviews collected automatically with listing data?** No. `--reviews` is a separate live collection against a separate dataset and requires `--live`; it may incur another charge. `--reviews-file` is for local fixture review triage.
+
+**Are review themes sentiment analysis?** No. Themes use simple literal word rules, and rating-based labels only prioritize human review. Read the excerpt and original source before drawing conclusions.
+
+**Can I run the examples without credentials?** Yes. The supplied JSON examples and dry-run are local. Live collection requires a Bright Data API key and may incur charges.
