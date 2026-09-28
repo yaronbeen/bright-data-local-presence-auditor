@@ -1,4 +1,6 @@
-# Google Maps Public Listing & Review Audit
+# Bright Data Google Maps Public Listing & Review Audit
+
+**Repository:** [bright-data-local-presence-auditor](https://github.com/yaronbeen/bright-data-local-presence-auditor) · **Data provider:** [Bright Data](https://brightdata.com/)
 
 **Auditing several client Google Maps listings?** This CLI gives a local-marketing agency a consistent checklist of selected fields returned for supplied public listing URLs and, optionally, a human triage queue for returned public reviews. It helps decide which listings or reviews deserve manual verification. It is **not** a Google Business Profile API client and cannot verify ownership or edit a profile.
 
